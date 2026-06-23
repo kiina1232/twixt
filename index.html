@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TwixT Online</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg:        #1a1a2e;
+    --surface:   #16213e;
+    --panel:     #0f3460;
+    --board-bg:  #c8a96e;
+    --board-line:#a0845a;
+    --red:       #e63946;
+    --red-dim:   #7d1d24;
+    --black:     #1a1a2e;
+    --black-peg: #e8e8f0;
+    --black-dim: #5a5a7a;
+    --gold:      #f4a261;
+    --text:      #e8e8f0;
+    --text-muted:#8888aa;
+    --success:   #52b788;
+    --border:    rgba(255,255,255,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--gold); }
+  .status-pill {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(82,183,136,0.15);
+    color: var(--success);
+    border: 1px solid rgba(82,183,136,0.3);
+  }
+  .status-pill.waiting {
+    background: rgba(244,162,97,0.15);
+    color: var(--gold);
+    border-color: rgba(244,162,97,0.3);
+  }
+  .status-pill.disconnected {
+    background: rgba(230,57,70,0.15);
+    color: var(--red);
+    border-color: rgba(230,57,70,0.3);
+  }
+  header .right { margin-left: auto; display: flex; gap: 8px; }
+  .btn {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn:hover { background: rgba(255,255,255,0.1); }
+  .btn.primary { background: var(--gold); color: #1a1a2e; border-color: transparent; }
+  .btn.primary:hover { background: #f5b37a; }
+  .btn.danger { background: rgba(230,57,70,0.2); color: var(--red); border-color: rgba(230,57,70,0.3); }
+
+  /* ── Layout ── */
+  .app {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 300px;
+    min-width: 300px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-section h3 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .player-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+  }
+  .player-row.active { border-color: var(--gold); background: rgba(244,162,97,0.05); }
+  .peg-icon {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .peg-icon.red { background: var(--red); box-shadow: 0 0 8px rgba(230,57,70,0.5); }
+  .peg-icon.black { background: var(--black-peg); box-shadow: 0 0 8px rgba(232,232,240,0.3); }
+  .player-info { flex: 1; min-width: 0; }
+  .player-name { font-size: 14px; font-weight: 500; }
+  .player-role { font-size: 11px; color: var(--text-muted); }
+  .turn-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--gold);
+    color: #1a1a2e;
+  }
+
+  /* connection steps */
+  .conn-step {
+    margin-bottom: 14px;
+  }
+  .conn-step label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+  }
+  .conn-step textarea {
+    width: 100%;
+    height: 80px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 8px;
+    resize: none;
+    line-height: 1.5;
+  }
+  .conn-step textarea:focus { outline: none; border-color: var(--gold); }
+  .conn-step textarea.output { color: var(--gold); cursor: text; user-select: all; }
+
+  .copy-btn {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+  .mode-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .mode-tab {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 12px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .mode-tab.active { background: var(--panel); color: var(--text); border-color: var(--gold); }
+
+  .select-input {
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .select-input:focus { outline: none; border-color: var(--gold); }
+  .hint {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-muted);
+    margin-top: 8px;
+  }
+  .level-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--gold);
+    margin-top: 8px;
+  }
+
+  .log-box {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.8;
+    color: var(--text-muted);
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .log-box .log-entry { display: flex; gap: 8px; }
+  .log-box .log-time { color: var(--panel); flex-shrink: 0; }
+  .log-box .log-red { color: var(--red); }
+  .log-box .log-black { color: var(--black-peg); }
+  .log-box .log-sys { color: var(--gold); }
+
+  /* ── Main board area ── */
+  .board-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: auto;
+    position: relative;
+  }
+
+  .board-container {
+    position: relative;
+  }
+
+  canvas#boardCanvas {
+    display: block;
+    cursor: crosshair;
+    max-width: min(724px, calc(100vw - 32px));
+    height: auto;
+  }
+
+  /* ── Overlay screens ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,20,0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .overlay.hidden { display: none; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px 40px;
+    max-width: 480px;
+    width: 90%;
+    text-align: center;
+  }
+  .modal h2 { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+  .modal h2 .accent { color: var(--gold); }
+  .modal p { color: var(--text-muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+  .win-banner {
+    font-size: 48px;
+    margin-bottom: 10px;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  @media (max-width: 920px) {
+    header { padding: 12px 16px; }
+    .app { flex-direction: column; overflow: auto; }
+    .sidebar {
+      width: 100%;
+      min-width: 0;
+      max-height: 42vh;
+      border-right: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .board-wrap {
+      align-items: flex-start;
+      padding: 16px;
+      min-height: 58vh;
+    }
+    .modal { padding: 28px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Welcome overlay -->
+<div class="overlay" id="welcomeOverlay">
+  <div class="modal">
+    <div style="font-size:48px;margin-bottom:12px;">🎮</div>
+    <h2>Twix<span class="accent">T</span> Online</h2>
+    <p>フレンド対戦もCPU対戦もブラウザだけで遊べます。<br>サーバー不要・完全無料。</p>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="startCpuGame(3)">CPUと対戦</button>
+      <button class="btn primary" onclick="startAsHost()">ゲームを作る（赤）</button>
+      <button class="btn" onclick="startAsGuest()">招待コードで参加（黒）</button>
+    </div>
+    <p style="margin-top:16px;font-size:12px;color:var(--text-muted)">
+      赤は上下を結ぶ　／　黒は左右を結ぶ
+    </p>
+  </div>
+</div>
+
+<!-- Win overlay -->
+<div class="overlay hidden" id="winOverlay">
+  <div class="modal">
+    <div class="win-banner" id="winBanner">🏆</div>
+    <h2 id="winTitle">勝利！</h2>
+    <p id="winMsg"></p>
+    <div class="modal-actions">
+      <button class="btn primary" onclick="resetGame()">もう一度</button>
+      <button class="btn" onclick="location.reload()">トップに戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">Twix<span>T</span></div>
+  <div class="status-pill disconnected" id="connStatus">未接続</div>
+  <div class="right">
+    <button class="btn" onclick="resetGame()" id="resetBtn" style="display:none">新局</button>
+  </div>
+</header>
+
+<div class="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Players -->
+    <div class="sidebar-section">
+      <h3>プレイヤー</h3>
+      <div class="player-row" id="rowRed">
+        <div class="peg-icon red"></div>
+        <div class="player-info">
+          <div class="player-name" id="nameRed">---</div>
+          <div class="player-role">上辺 → 下辺</div>
+        </div>
+        <span class="turn-badge" id="turnRed" style="display:none">手番</span>
+      </div>
+      <div class="player-row" id="rowBlack">
+        <div class="peg-icon black"></div>
+        <div class="player-info">
+          <div class="player-name" id="nameBlack">---</div>
+          <div class="player-role">左辺 → 右辺</div>
+        </div>
+        <span class="turn-badge" id="turnBlack" style="display:none">手番</span>
+      </div>
+    </div>
+
+    <!-- Connection -->
+    <div class="sidebar-section" id="connPanel">
+      <h3>接続</h3>
+      <div class="mode-tabs" id="modeTabs" style="display:none">
+        <button class="mode-tab active" onclick="showConnStep(1)">① オファー</button>
+        <button class="mode-tab" onclick="showConnStep(2)">② アンサー</button>
+      </div>
+
+      <div id="connSteps">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Move log -->
+    <div class="sidebar-section" style="flex:1">
+      <h3>着手履歴</h3>
+      <div class="log-box" id="moveLog"></div>
+    </div>
+
+  </div>
+
+  <!-- Board -->
+  <div class="board-wrap">
+    <div class="board-container">
+      <canvas id="boardCanvas"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+//  GAME CONSTANTS
+// ─────────────────────────────────────────
+const N = 24;          // board size
+const CELL = 28;       // px per cell
+const PAD  = 40;       // border padding
+const PSIZE = 9;       // peg radius
+
+// Knight-move offsets for links
+const LINKS = [
+  [1,2],[2,1],[2,-1],[1,-2],
+  [-1,-2],[-2,-1],[-2,1],[-1,2]
+];
+
+const CPU_LEVELS = {
+  1: 'Lv1 きまぐれ',
+  2: 'Lv2 初級',
+  3: 'Lv3 中級',
+  4: 'Lv4 上級',
+  5: 'Lv5 最強'
+};
+
+// ─────────────────────────────────────────
+//  GAME STATE
+// ─────────────────────────────────────────
+let board = {};        // "r,c" -> 'red'|'black'
+let links = [];        // [{r1,c1,r2,c2,color}]
+let turn  = 'red';     // whose turn
+let gameOver = false;
+let myColor = null;    // 'red' or 'black'
+let isConnected = false;
+let isHost = false;
+let gameMode = null;   // 'online' or 'cpu'
+let cpuColor = 'black';
+let cpuLevel = 3;
+let cpuThinking = false;
+
+// ─────────────────────────────────────────
+//  WebRTC
+// ─────────────────────────────────────────
+let pc = null;
+let dc = null;
+
+function createPC() {
+  pc = new RTCPeerConnection({
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  });
+
+  pc.onicecandidate = () => {
+    if (pc.iceGatheringState === 'complete') {
+      updateSDPOutput();
+    }
+  };
+  pc.onicegatheringstatechange = () => {
+    if (pc.iceGatheringState === 'complete') updateSDPOutput();
+  };
+  pc.onconnectionstatechange = () => {
+    const s = pc.connectionState;
+    if (s === 'connected') onConnected();
+    if (s === 'disconnected' || s === 'failed' || s === 'closed') onDisconnected();
+  };
+  pc.ondatachannel = (e) => {
+    dc = e.channel;
+    setupDC();
+  };
+}
+
+function setupDC() {
+  dc.onopen  = () => onConnected();
+  dc.onclose = () => onDisconnected();
+  dc.onmessage = (e) => handleMsg(JSON.parse(e.data));
+}
+
+function send(obj) {
+  if (dc && dc.readyState === 'open') dc.send(JSON.stringify(obj));
+}
+
+// ─────────────────────────────────────────
+//  CPU FLOW
+// ─────────────────────────────────────────
+function startCpuGame(level = 3) {
+  closeWelcome();
+  gameMode = 'cpu';
+  cpuLevel = Number(level) || 3;
+  myColor = 'red';
+  cpuColor = 'black';
+  isHost = false;
+  isConnected = false;
+  cpuThinking = false;
+
+  document.getElementById('nameRed').textContent = 'あなた';
+  document.getElementById('nameBlack').textContent = CPU_LEVELS[cpuLevel];
+  document.getElementById('connPanel').style.display = '';
+  document.getElementById('resetBtn').style.display = '';
+  setConnStatus('connected', `CPU Lv${cpuLevel}`);
+  showCpuPanel();
+  addLog('sys', `${CPU_LEVELS[cpuLevel]}との対戦を開始しました`);
+  updateTurnUI();
+  drawBoard();
+}
+
+function showCpuPanel() {
+  document.getElementById('connPanel').querySelector('h3').textContent = 'CPU対戦';
+  document.getElementById('connSteps').innerHTML = `
+    <div class="conn-step">
+      <label for="cpuLevelSelect">CPUレベル</label>
+      <select class="select-input" id="cpuLevelSelect" onchange="setCpuLevel(this.value)">
+        ${Object.entries(CPU_LEVELS).map(([level, label]) =>
+          `<option value="${level}" ${Number(level) === cpuLevel ? 'selected' : ''}>${label}</option>`
+        ).join('')}
+      </select>
+      <div class="hint">あなたは赤で上下を、CPUは黒で左右をつなぎます。</div>
+      <div class="level-note" id="cpuLevelNote">${cpuLevelHelp(cpuLevel)}</div>
+    </div>
+  `;
+}
+
+function setCpuLevel(value) {
+  cpuLevel = Math.min(5, Math.max(1, Number(value) || 3));
+  document.getElementById('nameBlack').textContent = CPU_LEVELS[cpuLevel];
+  document.getElementById('cpuLevelNote').textContent = cpuLevelHelp(cpuLevel);
+  setConnStatus(cpuThinking ? 'waiting' : 'connected', cpuThinking ? 'CPU思考中' : `CPU Lv${cpuLevel}`);
+  addLog('sys', `CPUを${CPU_LEVELS[cpuLevel]}に変更しました`);
+}
+
+function cpuLevelHelp(level) {
+  return {
+    1: 'ランダム性が高く、形をあまり読みません。',
+    2: 'リンク数と進行方向を軽く見ます。',
+    3: '即勝ちと即負けの阻止を優先します。',
+    4: '相手の次の好手を少し読んで選びます。',
+    5: '候補手を広く読み、反撃リスクを強めに避けます。'
+  }[level] || '';
+}
+
+function queueCpuMove(delay = 420) {
+  if (gameMode !== 'cpu' || gameOver || turn !== cpuColor) return;
+  cpuThinking = true;
+  setConnStatus('waiting', 'CPU思考中');
+  setTimeout(() => {
+    if (gameMode !== 'cpu' || gameOver || turn !== cpuColor) {
+      cpuThinking = false;
+      return;
+    }
+    const move = chooseCpuMove(cpuColor, cpuLevel);
+    cpuThinking = false;
+    if (!move) {
+      showDraw();
+      return;
+    }
+    applyMove(move.r, move.c, cpuColor, false);
+    setConnStatus('connected', gameOver ? '決着' : `CPU Lv${cpuLevel}`);
+  }, delay);
+}
+
+// ─────────────────────────────────────────
+//  HOST FLOW
+// ─────────────────────────────────────────
+async function startAsHost() {
+  closeWelcome();
+  gameMode = 'online';
+  cpuThinking = false;
+  isHost   = true;
+  myColor  = 'red';
+  document.getElementById('nameRed').textContent = 'あなた';
+  document.getElementById('nameBlack').textContent = '相手（待機中）';
+
+  createPC();
+  dc = pc.createDataChannel('game');
+  setupDC();
+
+  // gather candidates then show offer
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  // wait for gathering
+  await waitGather();
+
+  showHostPanel();
+}
+
+async function waitGather() {
+  if (pc.iceGatheringState === 'complete') return;
+  return new Promise(r => {
+    const chk = () => {
+      if (pc.iceGatheringState === 'complete') { pc.removeEventListener('icegatheringstatechange', chk); r(); }
+    };
+    pc.addEventListener('icegatheringstatechange', chk);
+    setTimeout(r, 4000); // timeout fallback
+  });
+}
+
+function showHostPanel() {
+  setConnStatus('waiting', '相手待ち');
+  const sdp = btoa(JSON.stringify(pc.localDescription));
+  document.getElementById('connSteps').innerHTML = `
+    <div class="conn-step">
+      <label>① このコードをフレンドに送る</label>
+      <textarea class="output" id="offerOut" readonly>${sdp}</textarea>
+      <button class="copy-btn" onclick="copyField('offerOut',this)">コピー</button>
+    </div>
+    <div class="conn-step">
+      <label>② フレンドのアンサーコードを貼り付け</label>
+      <textarea id="answerIn" placeholder="アンサーコードをここに..."></textarea>
+      <button class="btn primary" style="width:100%;margin-top:6px;font-size:12px" onclick="submitAnswer()">接続する</button>
+    </div>
+  `;
+}
+
+async function submitAnswer() {
+  const raw = document.getElementById('answerIn').value.trim();
+  try {
+    const desc = JSON.parse(atob(raw));
+    await pc.setRemoteDescription(desc);
+    setConnStatus('waiting', '接続中...');
+  } catch(e) {
+    alert('コードが正しくありません: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────
+//  GUEST FLOW
+// ─────────────────────────────────────────
+function startAsGuest() {
+  closeWelcome();
+  gameMode = 'online';
+  cpuThinking = false;
+  isHost  = false;
+  myColor = 'black';
+  document.getElementById('nameBlack').textContent = 'あなた';
+  document.getElementById('nameRed').textContent = '相手（待機中）';
+
+  createPC();
+
+  document.getElementById('connSteps').innerHTML = `
+    <div class="conn-step">
+      <label>① ホストのオファーコードを貼り付け</label>
+      <textarea id="offerIn" placeholder="オファーコードをここに..."></textarea>
+      <button class="btn primary" style="width:100%;margin-top:6px;font-size:12px" onclick="submitOffer()">アンサーを作る</button>
+    </div>
+    <div class="conn-step" id="answerOutStep" style="display:none">
+      <label>② このアンサーコードをホストに送る</label>
+      <textarea class="output" id="answerOut" readonly></textarea>
+      <button class="copy-btn" id="answerCopyBtn" onclick="copyField('answerOut',this)">コピー</button>
+    </div>
+  `;
+}
+
+async function submitOffer() {
+  const raw = document.getElementById('offerIn').value.trim();
+  try {
+    const desc = JSON.parse(atob(raw));
+    await pc.setRemoteDescription(desc);
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitGather();
+
+    const sdp = btoa(JSON.stringify(pc.localDescription));
+    const step = document.getElementById('answerOutStep');
+    step.style.display = 'block';
+    document.getElementById('answerOut').value = sdp;
+    setConnStatus('waiting', '接続待ち');
+  } catch(e) {
+    alert('コードが正しくありません: ' + e.message);
+  }
+}
+
+// ─────────────────────────────────────────
+//  CONNECTION EVENTS
+// ─────────────────────────────────────────
+function onConnected() {
+  isConnected = true;
+  setConnStatus('connected', '接続済み');
+  document.getElementById('nameRed').textContent   = isHost ? 'あなた' : '相手';
+  document.getElementById('nameBlack').textContent = isHost ? '相手'   : 'あなた';
+  document.getElementById('connPanel').style.display = 'none';
+  document.getElementById('resetBtn').style.display = '';
+  addLog('sys', '接続が確立されました');
+  // Host sends initial state
+  if (isHost) {
+    send({ type: 'sync', board, links, turn });
+  }
+  updateTurnUI();
+  drawBoard();
+}
+
+function onDisconnected() {
+  isConnected = false;
+  setConnStatus('disconnected', '切断');
+  addLog('sys', '相手が切断しました');
+}
+
+// ─────────────────────────────────────────
+//  MESSAGE HANDLER
+// ─────────────────────────────────────────
+function handleMsg(msg) {
+  switch (msg.type) {
+    case 'sync':
+      board = msg.board;
+      links = msg.links;
+      turn  = msg.turn;
+      updateTurnUI();
+      drawBoard();
+      break;
+    case 'move':
+      applyMove(msg.r, msg.c, msg.color, false);
+      break;
+    case 'reset':
+      doReset(false);
+      break;
+  }
+}
+
+// ─────────────────────────────────────────
+//  BOARD LOGIC
+// ─────────────────────────────────────────
+function key(r,c) { return `${r},${c}`; }
+
+function inBounds(r,c) {
+  if (r < 0 || r >= N || c < 0 || c >= N) return false;
+  // corners excluded (first/last row can't use first/last col for own color and vice versa)
+  return true;
+}
+
+// Is this cell playable for this color?
+function playable(r, c, color) {
+  if (!inBounds(r,c)) return false;
+  // Red's goal edges: row 0 and row N-1 → columns 1..N-2
+  // Black's goal edges: col 0 and col N-1 → rows 1..N-2
+  if (color === 'red') {
+    if (c === 0 || c === N-1) return false; // corners / side borders
+  } else {
+    if (r === 0 || r === N-1) return false;
+  }
+  return !board[key(r,c)];
+}
+
+// Check if two pegs can link (knight's move, same color, no crossing links)
+function canLink(r1,c1,r2,c2,color) {
+  // must be different cells
+  if (r1===r2 && c1===c2) return false;
+  const dr = r2-r1, dc = c2-c1;
+  const isKnight = (Math.abs(dr)===1&&Math.abs(dc)===2)||(Math.abs(dr)===2&&Math.abs(dc)===1);
+  if (!isKnight) return false;
+  if (board[key(r1,c1)] !== color || board[key(r2,c2)] !== color) return false;
+  // no crossing
+  if (linksIntersect(r1,c1,r2,c2)) return false;
+  return true;
+}
+
+// Simplified segment intersection
+function seg_intersect(a1,b1,a2,b2,c1,d1,c2,d2) {
+  function cross(ax,ay,bx,by) { return ax*by - ay*bx; }
+  const dx1=a2-a1, dy1=b2-b1, dx2=c2-c1, dy2=d2-d1;
+  const denom = cross(dx1,dy1,dx2,dy2);
+  if (Math.abs(denom)<1e-10) return false;
+  const t = cross(c1-a1,d1-b1,dx2,dy2)/denom;
+  const u = cross(c1-a1,d1-b1,dx1,dy1)/denom;
+  return t>0.001&&t<0.999&&u>0.001&&u<0.999;
+}
+
+function linksIntersect(r1,c1,r2,c2) {
+  const [x1,y1] = cellXY(r1,c1);
+  const [x2,y2] = cellXY(r2,c2);
+  for (const lk of links) {
+    const [lx1,ly1] = cellXY(lk.r1,lk.c1);
+    const [lx2,ly2] = cellXY(lk.r2,lk.c2);
+    if (seg_intersect(x1,y1,x2,y2,lx1,ly1,lx2,ly2)) return true;
+  }
+  return false;
+}
+
+function applyMove(r, c, color, broadcast) {
+  if (!playable(r,c,color)) return false;
+  board[key(r,c)] = color;
+
+  // auto-link to all same-color pegs in knight's range
+  for (const [dr,dc] of LINKS) {
+    const nr=r+dr, nc=c+dc;
+    if (board[key(nr,nc)]===color && canLink(r,c,nr,nc,color)) {
+      links.push({r1:r,c1:c,r2:nr,c2:nc,color});
+    }
+  }
+
+  addLog(color, `${color==='red'?'赤':'黒'} (${r+1},${c+1})`);
+
+  // win check
+  if (checkWin(color)) {
+    gameOver = true;
+    showWin(color);
+  } else {
+    turn = color==='red'?'black':'red';
+    updateTurnUI();
+  }
+
+  if (broadcast) {
+    send({ type:'move', r, c, color });
+  }
+
+  drawBoard();
+  return true;
+}
+
+// BFS/DFS win check
+function checkWin(color) {
+  // Build adjacency from links
+  const adj = {};
+  for (const lk of links) {
+    if (lk.color !== color) continue;
+    const a=key(lk.r1,lk.c1), b=key(lk.r2,lk.c2);
+    (adj[a]=adj[a]||[]).push(b);
+    (adj[b]=adj[b]||[]).push(a);
+  }
+
+  // red: connect row0 to row N-1
+  // black: connect col0 to col N-1
+  const starts = [], goals = [];
+  for (const k of Object.keys(board)) {
+    if (board[k]!==color) continue;
+    const [r,c] = k.split(',').map(Number);
+    if (color==='red') {
+      if (r===0)   starts.push(k);
+      if (r===N-1) goals.push(k);
+    } else {
+      if (c===0)   starts.push(k);
+      if (c===N-1) goals.push(k);
+    }
+  }
+
+  const goalSet = new Set(goals);
+  const visited = new Set();
+  const queue = [...starts];
+  starts.forEach(s=>visited.add(s));
+
+  while (queue.length) {
+    const cur = queue.shift();
+    if (goalSet.has(cur)) return true;
+    for (const nb of (adj[cur]||[])) {
+      if (!visited.has(nb)) { visited.add(nb); queue.push(nb); }
+    }
+  }
+  return false;
+}
+
+// ─────────────────────────────────────────
+//  CPU PLAYER
+// ─────────────────────────────────────────
+function otherColor(color) {
+  return color === 'red' ? 'black' : 'red';
+}
+
+function cloneState(state) {
+  return {
+    board: { ...state.board },
+    links: state.links.map(lk => ({ ...lk }))
+  };
+}
+
+function liveState() {
+  return { board, links };
+}
+
+function playableInState(state, r, c, color) {
+  if (r < 0 || r >= N || c < 0 || c >= N) return false;
+  if (color === 'red') {
+    if (c === 0 || c === N - 1) return false;
+  } else {
+    if (r === 0 || r === N - 1) return false;
+  }
+  return !state.board[key(r, c)];
+}
+
+function linksIntersectInState(state, r1, c1, r2, c2) {
+  for (const lk of state.links) {
+    if (seg_intersect(c1, r1, c2, r2, lk.c1, lk.r1, lk.c2, lk.r2)) return true;
+  }
+  return false;
+}
+
+function canLinkInState(state, r1, c1, r2, c2, color) {
+  const dr = r2 - r1, dc = c2 - c1;
+  const isKnight = (Math.abs(dr) === 1 && Math.abs(dc) === 2) || (Math.abs(dr) === 2 && Math.abs(dc) === 1);
+  if (!isKnight) return false;
+  if (state.board[key(r1, c1)] !== color || state.board[key(r2, c2)] !== color) return false;
+  return !linksIntersectInState(state, r1, c1, r2, c2);
+}
+
+function linkExistsInState(state, r1, c1, r2, c2, color) {
+  return state.links.some(lk =>
+    lk.color === color &&
+    ((lk.r1 === r1 && lk.c1 === c1 && lk.r2 === r2 && lk.c2 === c2) ||
+     (lk.r1 === r2 && lk.c1 === c2 && lk.r2 === r1 && lk.c2 === c1))
+  );
+}
+
+function applyMoveToState(state, r, c, color) {
+  if (!playableInState(state, r, c, color)) return null;
+  const next = cloneState(state);
+  next.board[key(r, c)] = color;
+  for (const [dr, dc] of LINKS) {
+    const nr = r + dr, nc = c + dc;
+    if (next.board[key(nr, nc)] === color && canLinkInState(next, r, c, nr, nc, color)) {
+      next.links.push({ r1: r, c1: c, r2: nr, c2: nc, color });
+    }
+  }
+  return next;
+}
+
+function checkWinInState(state, color) {
+  const adj = {};
+  for (const lk of state.links) {
+    if (lk.color !== color) continue;
+    const a = key(lk.r1, lk.c1), b = key(lk.r2, lk.c2);
+    (adj[a] = adj[a] || []).push(b);
+    (adj[b] = adj[b] || []).push(a);
+  }
+
+  const starts = [], goals = [];
+  for (const k of Object.keys(state.board)) {
+    if (state.board[k] !== color) continue;
+    const [r, c] = k.split(',').map(Number);
+    if (color === 'red') {
+      if (r === 0) starts.push(k);
+      if (r === N - 1) goals.push(k);
+    } else {
+      if (c === 0) starts.push(k);
+      if (c === N - 1) goals.push(k);
+    }
+  }
+
+  const goalSet = new Set(goals);
+  const visited = new Set(starts);
+  const queue = [...starts];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (goalSet.has(cur)) return true;
+    for (const nb of (adj[cur] || [])) {
+      if (!visited.has(nb)) {
+        visited.add(nb);
+        queue.push(nb);
+      }
+    }
+  }
+  return false;
+}
+
+function getAllMoves(state, color) {
+  const moves = [];
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      if (playableInState(state, r, c, color)) moves.push({ r, c });
+    }
+  }
+  return moves;
+}
+
+function countKnightNeighbors(state, r, c, color) {
+  let count = 0;
+  for (const [dr, dc] of LINKS) {
+    if (state.board[key(r + dr, c + dc)] === color) count++;
+  }
+  return count;
+}
+
+function countPotentialLinks(state, color) {
+  let count = 0;
+  const forwardLinks = [[1,2],[2,1],[2,-1],[1,-2]];
+  for (const k of Object.keys(state.board)) {
+    if (state.board[k] !== color) continue;
+    const [r, c] = k.split(',').map(Number);
+    for (const [dr, dc] of forwardLinks) {
+      const nr = r + dr, nc = c + dc;
+      if (
+        state.board[key(nr, nc)] === color &&
+        !linkExistsInState(state, r, c, nr, nc, color) &&
+        canLinkInState(state, r, c, nr, nc, color)
+      ) {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+function evaluateColorPosition(state, color) {
+  const pegs = Object.keys(state.board).filter(k => state.board[k] === color);
+  if (!pegs.length) return 0;
+
+  const adj = {};
+  for (const k of pegs) adj[k] = [];
+  let linkCount = 0;
+  for (const lk of state.links) {
+    if (lk.color !== color) continue;
+    linkCount++;
+    const a = key(lk.r1, lk.c1), b = key(lk.r2, lk.c2);
+    (adj[a] = adj[a] || []).push(b);
+    (adj[b] = adj[b] || []).push(a);
+  }
+
+  let score = pegs.length * 9 + linkCount * 42 + countPotentialLinks(state, color) * 16;
+  const visited = new Set();
+  for (const start of pegs) {
+    if (visited.has(start)) continue;
+    const queue = [start];
+    const component = [];
+    visited.add(start);
+    while (queue.length) {
+      const cur = queue.shift();
+      component.push(cur);
+      for (const nb of (adj[cur] || [])) {
+        if (!visited.has(nb)) {
+          visited.add(nb);
+          queue.push(nb);
+        }
+      }
+    }
+
+    const coords = component.map(k => k.split(',').map(Number));
+    const axisValues = coords.map(([r, c]) => color === 'red' ? r : c);
+    const perpValues = coords.map(([r, c]) => color === 'red' ? c : r);
+    const minAxis = Math.min(...axisValues);
+    const maxAxis = Math.max(...axisValues);
+    const span = maxAxis - minAxis;
+    const edgeGap = minAxis + ((N - 1) - maxAxis);
+    const center = (N - 1) / 2;
+    const centerControl = perpValues.reduce((sum, v) => sum + (center - Math.abs(v - center)), 0) / component.length;
+
+    score += span * 62 - edgeGap * 7 + Math.pow(component.length, 1.18) * 15 + centerControl * 3;
+    if (minAxis === 0) score += 95;
+    if (maxAxis === N - 1) score += 95;
+    if (minAxis === 0 && maxAxis === N - 1) score += 600;
+  }
+  return score;
+}
+
+function evaluateState(state, color) {
+  const opponent = otherColor(color);
+  if (checkWinInState(state, color)) return 10000000;
+  if (checkWinInState(state, opponent)) return -10000000;
+  return evaluateColorPosition(state, color) - evaluateColorPosition(state, opponent) * 1.08;
+}
+
+function shapeScore(state, next, color, move) {
+  const newLinks = next.links.length - state.links.length;
+  const opponent = otherColor(color);
+  const axis = color === 'red' ? move.r : move.c;
+  const perp = color === 'red' ? move.c : move.r;
+  const center = (N - 1) / 2;
+  const edgeBonus = (axis === 0 || axis === N - 1) ? 42 : 0;
+  const centerBonus = center - Math.abs(perp - center);
+  const ownNear = countKnightNeighbors(state, move.r, move.c, color);
+  const oppNear = countKnightNeighbors(state, move.r, move.c, opponent);
+  return newLinks * 130 + ownNear * 24 + oppNear * 8 + edgeBonus + centerBonus * 2;
+}
+
+function scoreMove(state, color, move, level) {
+  const next = applyMoveToState(state, move.r, move.c, color);
+  if (!next) return -Infinity;
+  const noise = [0, 260, 95, 28, 10, 3][level] * Math.random();
+  return evaluateState(next, color) + shapeScore(state, next, color, move) + noise;
+}
+
+function rankMoves(state, color, level) {
+  return getAllMoves(state, color)
+    .map(move => ({ ...move, score: scoreMove(state, color, move, level) }))
+    .sort((a, b) => b.score - a.score);
+}
+
+function immediateWinningMoves(state, color) {
+  return getAllMoves(state, color).filter(move => {
+    const next = applyMoveToState(state, move.r, move.c, color);
+    return next && checkWinInState(next, color);
+  });
+}
+
+function selectBestMove(state, color, moves, level) {
+  let best = null;
+  let bestScore = -Infinity;
+  for (const move of moves) {
+    const score = scoreMove(state, color, move, level);
+    if (score > bestScore) {
+      best = move;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function searchMove(state, color, level) {
+  const opponent = otherColor(color);
+  const ownBreadth = level === 5 ? 52 : 34;
+  const replyBreadth = level === 5 ? 26 : 14;
+  const replyWeight = level === 5 ? 0.9 : 0.62;
+  const candidates = rankMoves(state, color, level).slice(0, ownBreadth);
+  let best = candidates[0] || null;
+  let bestScore = -Infinity;
+
+  for (const move of candidates) {
+    const next = applyMoveToState(state, move.r, move.c, color);
+    if (!next) continue;
+    const replies = rankMoves(next, opponent, level).slice(0, replyBreadth);
+    let opponentBest = 0;
+    for (const reply of replies) {
+      const afterReply = applyMoveToState(next, reply.r, reply.c, opponent);
+      if (!afterReply) continue;
+      opponentBest = Math.max(opponentBest, evaluateState(afterReply, opponent));
+    }
+    const score = evaluateState(next, color) + shapeScore(state, next, color, move) - opponentBest * replyWeight + Math.random() * (level === 5 ? 2 : 8);
+    if (score > bestScore) {
+      best = move;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function chooseCpuMove(color, level) {
+  const state = liveState();
+  const moves = getAllMoves(state, color);
+  if (!moves.length) return null;
+
+  const wins = immediateWinningMoves(state, color);
+  if (wins.length) return selectBestMove(state, color, wins, level);
+
+  const opponent = otherColor(color);
+  if (level >= 3) {
+    const threats = immediateWinningMoves(state, opponent);
+    if (threats.length) {
+      const threatCells = new Set(threats.map(move => key(move.r, move.c)));
+      const blockers = moves.filter(move => threatCells.has(key(move.r, move.c)));
+      if (blockers.length) return selectBestMove(state, color, blockers, level);
+    }
+  }
+
+  if (level === 1) {
+    const shuffled = [...moves].sort(() => Math.random() - 0.5);
+    return selectBestMove(state, color, shuffled.slice(0, Math.min(80, shuffled.length)), level);
+  }
+
+  if (level <= 3) {
+    const breadth = level === 2 ? 90 : 130;
+    return rankMoves(state, color, level).slice(0, breadth)[0] || moves[0];
+  }
+
+  return searchMove(state, color, level) || moves[0];
+}
+
+// ─────────────────────────────────────────
+//  CANVAS RENDERING
+// ─────────────────────────────────────────
+const canvas = document.getElementById('boardCanvas');
+const ctx    = canvas.getContext('2d');
+
+const BSIZE = PAD*2 + CELL*(N-1);
+canvas.width  = BSIZE;
+canvas.height = BSIZE;
+
+function cellXY(r,c) {
+  return [PAD + c*CELL, PAD + r*CELL];
+}
+
+let hoverCell = null;
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const c = Math.round((mx - PAD) / CELL);
+  const r = Math.round((my - PAD) / CELL);
+  if (r>=0&&r<N&&c>=0&&c<N) hoverCell = {r,c};
+  else hoverCell = null;
+  drawBoard();
+});
+
+canvas.addEventListener('mouseleave', () => { hoverCell = null; drawBoard(); });
+
+canvas.addEventListener('click', e => {
+  if (gameOver || cpuThinking || (gameMode !== 'cpu' && !isConnected)) return;
+  if (turn !== myColor) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const c = Math.round((mx - PAD) / CELL);
+  const r = Math.round((my - PAD) / CELL);
+
+  if (!playable(r, c, myColor)) return;
+  const moved = applyMove(r, c, myColor, gameMode === 'online');
+  if (moved && gameMode === 'cpu') queueCpuMove();
+});
+
+function drawBoard() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  // Board background
+  ctx.fillStyle = '#c8a96e';
+  ctx.beginPath();
+  roundRect(ctx, 0, 0, W, H, 12);
+  ctx.fill();
+
+  // Wood grain subtle texture
+  ctx.fillStyle = 'rgba(0,0,0,0.04)';
+  for (let i=0;i<H;i+=4) {
+    ctx.fillRect(0,i,W,1);
+  }
+
+  // Goal borders
+  // Red: top and bottom rows → highlighted
+  drawGoalBorder('red');
+  drawGoalBorder('black');
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(100,65,20,0.25)';
+  ctx.lineWidth = 1;
+  for (let r=0;r<N;r++) {
+    for (let c=0;c<N;c++) {
+      const [x,y] = cellXY(r,c);
+      // right
+      if (c<N-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+CELL,y); ctx.stroke(); }
+      // down
+      if (r<N-1) { ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x,y+CELL); ctx.stroke(); }
+    }
+  }
+
+  // Links (draw before pegs)
+  for (const lk of links) {
+    const [x1,y1] = cellXY(lk.r1,lk.c1);
+    const [x2,y2] = cellXY(lk.r2,lk.c2);
+    ctx.strokeStyle = lk.color==='red' ? '#e63946' : '#b0b0d0';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+  }
+
+  // Hover preview
+  if (hoverCell && !gameOver && !cpuThinking && turn===myColor && (gameMode === 'cpu' || isConnected)) {
+    const {r,c} = hoverCell;
+    if (playable(r,c,myColor)) {
+      const [x,y] = cellXY(r,c);
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = myColor==='red' ? '#e63946' : '#e8e8f0';
+      ctx.beginPath();
+      ctx.arc(x,y,PSIZE,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      // preview links
+      for (const [dr,dc2] of LINKS) {
+        const nr=r+dr, nc=c+dc2;
+        if (board[key(nr,nc)]===myColor) {
+          // check crossing
+          const wouldCross = linksIntersect(r,c,nr,nc);
+          const [x2,y2] = cellXY(nr,nc);
+          ctx.globalAlpha = wouldCross ? 0.1 : 0.25;
+          ctx.strokeStyle = myColor==='red'?'#e63946':'#e8e8f0';
+          ctx.lineWidth = 3;
+          ctx.setLineDash([4,4]);
+          ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x2,y2); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+  }
+
+  // Pegs
+  for (const [k,color] of Object.entries(board)) {
+    const [r,c] = k.split(',').map(Number);
+    const [x,y] = cellXY(r,c);
+    drawPeg(x,y,color);
+  }
+
+  // Axis labels
+  ctx.fillStyle = 'rgba(80,45,10,0.6)';
+  ctx.font = '10px Inter';
+  ctx.textAlign = 'center';
+  for (let i=0;i<N;i++) {
+    const [x,] = cellXY(0,i);
+    ctx.fillText(i+1, x, PAD-18);
+  }
+  ctx.textAlign = 'right';
+  for (let i=0;i<N;i++) {
+    const [,y] = cellXY(i,0);
+    ctx.fillText(i+1, PAD-10, y+4);
+  }
+}
+
+function drawPeg(x,y,color) {
+  const isR = color==='red';
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x+1,y+2,PSIZE,PSIZE*0.6,0,0,Math.PI*2);
+  ctx.fill();
+  // body
+  const grad = ctx.createRadialGradient(x-2,y-2,1,x,y,PSIZE);
+  grad.addColorStop(0, isR?'#ff6b7a':'#f0f0ff');
+  grad.addColorStop(1, isR?'#c0272f':'#8888a8');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x,y,PSIZE,0,Math.PI*2);
+  ctx.fill();
+  // hole
+  ctx.fillStyle = isR?'rgba(80,0,10,0.6)':'rgba(40,40,80,0.5)';
+  ctx.beginPath();
+  ctx.arc(x,y,PSIZE*0.3,0,Math.PI*2);
+  ctx.fill();
+}
+
+function drawGoalBorder(color) {
+  const isR = color==='red';
+  ctx.fillStyle = isR ? 'rgba(230,57,70,0.12)' : 'rgba(200,200,240,0.1)';
+  ctx.strokeStyle = isR ? 'rgba(230,57,70,0.5)' : 'rgba(180,180,230,0.4)';
+  ctx.lineWidth = 2;
+  if (isR) {
+    // top row
+    const [x0,y0] = cellXY(0,1);
+    const [x1,y1] = cellXY(0,N-2);
+    ctx.beginPath();
+    ctx.rect(x0-6,y0-6,(x1-x0)+12,12);
+    ctx.fill(); ctx.stroke();
+    // bottom
+    const [x2,y2] = cellXY(N-1,1);
+    const [x3,y3] = cellXY(N-1,N-2);
+    ctx.beginPath();
+    ctx.rect(x2-6,y2-6,(x3-x2)+12,12);
+    ctx.fill(); ctx.stroke();
+  } else {
+    // left col
+    const [x0,y0] = cellXY(1,0);
+    const [x1,y1] = cellXY(N-2,0);
+    ctx.beginPath();
+    ctx.rect(x0-6,y0-6,12,(y1-y0)+12);
+    ctx.fill(); ctx.stroke();
+    // right col
+    const [x2,y2] = cellXY(1,N-1);
+    const [x3,y3] = cellXY(N-2,N-1);
+    ctx.beginPath();
+    ctx.rect(x2-6,y2-6,12,(y3-y2)+12);
+    ctx.fill(); ctx.stroke();
+  }
+}
+
+function roundRect(ctx,x,y,w,h,r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);
+  ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);
+  ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+
+// ─────────────────────────────────────────
+//  UI HELPERS
+// ─────────────────────────────────────────
+function closeWelcome() {
+  document.getElementById('welcomeOverlay').classList.add('hidden');
+}
+
+function setConnStatus(state, text) {
+  const el = document.getElementById('connStatus');
+  el.className = 'status-pill ' + state;
+  el.textContent = text;
+}
+
+function updateTurnUI() {
+  const isRedTurn = turn==='red';
+  document.getElementById('turnRed').style.display   = isRedTurn   ? '' : 'none';
+  document.getElementById('turnBlack').style.display = !isRedTurn  ? '' : 'none';
+  document.getElementById('rowRed').classList.toggle('active', isRedTurn);
+  document.getElementById('rowBlack').classList.toggle('active', !isRedTurn);
+}
+
+function addLog(type, text) {
+  const log = document.getElementById('moveLog');
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  div.innerHTML = `<span class="log-time">${time}</span><span class="log-${type}">${text}</span>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function showWin(color) {
+  const isMe = color===myColor;
+  const winnerName = isMe ? 'あなた' : (gameMode === 'cpu' ? CPU_LEVELS[cpuLevel] : '相手');
+  document.getElementById('winBanner').textContent = isMe ? '🏆' : '😔';
+  document.getElementById('winTitle').textContent  = isMe ? '勝利！' : '敗北...';
+  document.getElementById('winMsg').textContent =
+    `${winnerName}（${color==='red'?'赤':'黒'}）が${color==='red'?'上下':'左右'}をつなぎました！`;
+  document.getElementById('winOverlay').classList.remove('hidden');
+  if (gameMode === 'cpu') setConnStatus('connected', '決着');
+}
+
+function showDraw() {
+  gameOver = true;
+  document.getElementById('winBanner').textContent = '-';
+  document.getElementById('winTitle').textContent = '引き分け';
+  document.getElementById('winMsg').textContent = '置ける場所がありません。';
+  document.getElementById('winOverlay').classList.remove('hidden');
+  setConnStatus('connected', '決着');
+}
+
+function updateSDPOutput() {
+  const out = document.getElementById('offerOut');
+  if (out && pc.localDescription) {
+    out.value = btoa(JSON.stringify(pc.localDescription));
+  }
+}
+
+function copyField(id, btn) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.value).then(() => {
+    btn.textContent = 'コピー済み ✓';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent='コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function resetGame() {
+  board = {};
+  links = [];
+  turn  = 'red';
+  gameOver = false;
+  cpuThinking = false;
+  document.getElementById('winOverlay').classList.add('hidden');
+  document.getElementById('moveLog').innerHTML = '';
+  if (gameMode === 'cpu') {
+    setConnStatus('connected', `CPU Lv${cpuLevel}`);
+    showCpuPanel();
+    addLog('sys', `${CPU_LEVELS[cpuLevel]}との新局を開始しました`);
+  }
+  updateTurnUI();
+  drawBoard();
+  if (gameMode === 'online' && isConnected && isHost) {
+    send({ type:'reset' });
+  }
+}
+
+function doReset(broadcast) {
+  board = {};
+  links = [];
+  turn  = 'red';
+  gameOver = false;
+  cpuThinking = false;
+  document.getElementById('winOverlay').classList.add('hidden');
+  document.getElementById('moveLog').innerHTML = '';
+  updateTurnUI();
+  drawBoard();
+}
+
+// Initial draw
+drawBoard();
+</script>
+</body>
+</html>
